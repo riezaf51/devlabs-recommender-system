@@ -1,7 +1,6 @@
 from flask import Flask, request, g
 import logging
 import time
-import os
 from devlabs_recommender_system.recommender import recommend
 from devlabs_recommender_system.utils.logger import setup_logging
 from devlabs_recommender_system.utils.response_wrapper import success_response, error_response
@@ -26,7 +25,7 @@ def log_response_info(response):
 def index():
     return success_response(message="This service is running properly")
 
-@app.route('/api/recommend', methods=['GET'])
+@app.route('/api/recommend', methods=['POST'])
 def get_recommendations():
     client_preferences = request.args.get('preferences')
     
