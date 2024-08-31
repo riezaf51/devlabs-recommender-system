@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, MinMaxScaler
 
 def parse_budget_range(budget_str):
     """Parse budget string into a tuple of min and max budget."""
@@ -22,6 +22,10 @@ def prepare_data(architects_data, project_area):
     # Calculate estimated budget
     estimated_budgets = [rate * project_area for rate in rates]
 
+    # Normalize estimated budgets
+    scaler = MinMaxScaler()
+    estimated_budgets_scaled = scaler.fit_transform(np.array(estimated_budgets).reshape(-1, 1))
+
     # Convert categorical data to numeric
     city_encoder = LabelEncoder()
     theme_encoder = LabelEncoder()
@@ -29,8 +33,9 @@ def prepare_data(architects_data, project_area):
     cities_encoded = city_encoder.fit_transform(cities)
     themes_encoded = theme_encoder.fit_transform(themes)
     
-    X = np.column_stack((cities_encoded, themes_encoded, estimated_budgets))
-    return X, city_encoder, theme_encoder
+    X = np.column_stack((cities_encoded, themes_encoded, estimated_budgets_scaled))
+
+    return X, city_encoder, theme_encoder, scaler
 
 def recommend_architect(project_data, architects_data, k=5):
     project_city = project_data.get('city')
@@ -41,16 +46,22 @@ def recommend_architect(project_data, architects_data, k=5):
     project_budget_mid = (project_budget_min + project_budget_max) / 2
 
     # Prepare data
-    X, city_encoder, theme_encoder = prepare_data(architects_data, project_area)
+    X, city_encoder, theme_encoder, scaler = prepare_data(architects_data, project_area)
 
     # Prepare the project data point
-    project_city_encoded = city_encoder.transform([project_city])[0]
-    project_theme_encoded = theme_encoder.transform([project_theme])[0]
-    project_features = np.array([[project_city_encoded, project_theme_encoded, project_budget_mid]])
+    project_city_encoded = city_encoder.transform([project_city])[0] if project_city in city_encoder.classes_ else -1
+    project_theme_encoded = theme_encoder.transform([project_theme])[0] if project_theme in theme_encoder.classes_ else -1
+    project_estimated_budget = project_budget_mid
 
+    # Scale project estimated budget
+    project_estimated_budget_scaled = scaler.transform([[project_estimated_budget]])[0][0]
+    
+    # Scale the project data point to match the normalized data
+    project_features = np.array([[project_city_encoded, project_theme_encoded, project_estimated_budget_scaled]])
+    
     # Fit k-NN model
     knn = KNeighborsRegressor(n_neighbors=k)
-    knn.fit(X, X)  # We fit X as both features and targets since we're using knn for similarity
+    knn.fit(X, X)  # Fit using X as both features and targets
 
     # Get the nearest neighbors
     distances, indices = knn.kneighbors(project_features)
