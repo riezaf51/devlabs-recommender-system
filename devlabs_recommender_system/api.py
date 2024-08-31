@@ -1,7 +1,7 @@
 from flask import Flask, request, g
 import logging
 import time
-from devlabs_recommender_system.recommender import recommend
+from devlabs_recommender_system.recommender import recommend_architect
 from devlabs_recommender_system.utils.logger import setup_logging
 from devlabs_recommender_system.utils.response_wrapper import success_response, error_response
 
@@ -25,11 +25,13 @@ def log_response_info(response):
 def index():
     return success_response(message="This service is running properly")
 
-@app.route('/api/recommend', methods=['POST'])
-def get_recommendations():
-    client_preferences = request.args.get('preferences')
+@app.route('/api/architects/recommend', methods=['POST'])
+def get_architect_recommendations():
+    payload = request.get_json()
+    project_data = payload.get('project')
+    architects_data = payload.get('architects')
     
-    recommendations = recommend(client_preferences)
+    recommendations = recommend_architect(project_data, architects_data)
 
     return success_response(data=recommendations, message="Recommendations generated successfully")
 
